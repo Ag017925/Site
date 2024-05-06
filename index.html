@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск книг и покупка</title>
+</head>
+<body>
+    <input type="text" id="bookInput" placeholder="Введите название книги">
+    <button onclick="searchBooks()">Поиск</button>
+    
+    <div id="bookList"></div>
+
+    <div id="buyForm" style="display: none;">
+        <h2>Покупка книги</h2>
+        <form id="purchaseForm">
+            <label for="name">Имя:</label>
+            <input type="text" id="name" required><br>
+            <label for="email">Почта:</label>
+            <input type="email" id="email" required><br>
+            <label for="phone">Телефон:</label>
+            <input type="tel" id="phone" required><br>
+            <label for="address">Адрес:</label>
+            <input type="text" id="address" required><br>
+            <input type="hidden" id="bookTitle" name="bookTitle">
+            <input type="hidden" id="bookAuthors" name="bookAuthors">
+            <button type="submit">Отправить</button>
+        </form>
+    </div>
+
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script>
+        // Авторизация Google API
+        async function handleClientLoad() {
+            await gapi.client.init({
+                apiKey: 'AIzaSyBo1N4rLpSIiJG-0awRAdb1Q-1fFmmpBu4',
+                discoveryDocs: ["https://sheets.googleapis.com/$discovery/rest?version=v4"],
+            });
+        }
+
+        function searchBooks() {
+            const bookInput = document.getElementById("bookInput").value;
+            const url = `https://www.googleapis.com/books/v1/volumes?q=${bookInput}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const books = data.items;
+                    const bookList = document.getElementById("bookList");
+                    bookList.innerHTML = '';
+
+                    books.forEach(book => {
+                        const title = book.volumeInfo.title;
+                        const authors = book.volumeInfo.authors;
+                        const buyButton = `<button onclick="showBuyForm('${title}', '${authors.join(', ')}')">Купить</button>`;
+                        const bookItem = `<p><strong>${title}</strong> - ${authors.join(', ')} ${buyButton}</p>`;
+                        bookList.innerHTML += bookItem;
+                    });
+                })
+                .catch(error => console.log('Ошибка при загрузке книг:', error));
+        }
+
+        function showBuyForm(title, authors) {
+            document.getElementById("buyForm").style.display = "block";
+            document.getElementById("bookTitle").value = title;
+            document.getElementById("bookAuthors").value = authors;
+        }
+
+        async function sendDataToGoogleSheets(data) {
+            try {
+                await gapi.client.sheets.spreadsheets.values.append({
+                    spreadsheetId: '15vITLyEwXuz97bB1mf3xEvgla4riBHCph42hBePsU-8',
+                    range: 'Sheet1!A1',
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [data]
+                    }
+                });
+                alert('Данные успешно отправлены!');
+            } catch (error) {
+                console.error('Ошибка при отправке данных:', error);
+                alert('Произошла ошибка при отправке данных.');
+            }
+        }
+
+        document.getElementById("purchaseForm").addEventListener("submit", function(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const data = [
+                new Date().toLocaleString(),
+                formData.get("name"),
+                formData.get("email"),
+                formData.get("phone"),
+                formData.get("address"),
+                document.getElementById("bookTitle").value,
+                document.getElementById("bookAuthors").value
+            ];
+            sendDataToGoogleSheets(data);
+            // Здесь можно добавить дополнительные действия, например, очистить форму или показать благодарность
+            event.target.reset();
+            document.getElementById("buyForm").style.display = "none";
+        });
+    </script>
+    <script async defer src="https://apis.google.com/js/api.js" onload="handleClientLoad()"></script>
+</body>
+</html>
